@@ -1,0 +1,14 @@
+Command: cmake -G Ninja -B /home/baston/src/bubo/screen/build -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/home/baston/.espressif/tools/python/v6.0.2/venv/bin/python -DESP_PLATFORM=1 -DCCACHE_ENABLE=False /home/baston/src/bubo/screen
+-- IDF_TARGET is not set, guessed 'esp32p4' from sdkconfig '/home/baston/src/bubo/screen/sdkconfig'
+-- Found Git: /usr/bin/git (found version "2.55.0")
+-- Component directory /home/baston/.espressif/v6.0.2/esp-idf/components/mqtt does not contain a CMakeLists.txt file. No component will be added
+-- Minimal build - OFF
+-- The C compiler identification is GNU 15.2.0
+-- The CXX compiler identification is GNU 15.2.0
+-- The ASM compiler identification is GNU
+-- Found assembler: /home/baston/.espressif/tools/riscv32-esp-elf/esp-15.2.0_20251204/riscv32-esp-elf/bin/riscv32-esp-elf-gcc
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - failed
+-- Check for working C compiler: /home/baston/.espressif/tools/riscv32-esp-elf/esp-15.2.0_20251204/riscv32-esp-elf/bin/riscv32-esp-elf-gcc
+-- Check for working C compiler: /home/baston/.espressif/tools/riscv32-esp-elf/esp-15.2.0_20251204/riscv32-esp-elf/bin/riscv32-esp-elf-gcc - broken
+-- Configuring incomplete, errors occurred!

@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/home/baston/src/CrowPanel-Advanced-5inch-ESP32-P4-HMI-AI-Display-800x480-IPS-Touch-Screen/example/V1.0/idf-code/Lesson13-Camera_Real-Time/build/CMakeFiles/bootloader
+/home/baston/src/CrowPanel-Advanced-5inch-ESP32-P4-HMI-AI-Display-800x480-IPS-Touch-Screen/example/V1.0/idf-code/Lesson13-Camera_Real-Time/build/CMakeFiles/bootloader.rule
+/home/baston/src/CrowPanel-Advanced-5inch-ESP32-P4-HMI-AI-Display-800x480-IPS-Touch-Screen/example/V1.0/idf-code/Lesson13-Camera_Real-Time/build/CMakeFiles/bootloader-complete.rule
+/home/baston/src/CrowPanel-Advanced-5inch-ESP32-P4-HMI-AI-Display-800x480-IPS-Touch-Screen/example/V1.0/idf-code/Lesson13-Camera_Real-Time/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/home/baston/src/CrowPanel-Advanced-5inch-ESP32-P4-HMI-AI-Display-800x480-IPS-Touch-Screen/example/V1.0/idf-code/Lesson13-Camera_Real-Time/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/home/baston/src/CrowPanel-Advanced-5inch-ESP32-P4-HMI-AI-Display-800x480-IPS-Touch-Screen/example/V1.0/idf-code/Lesson13-Camera_Real-Time/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/home/baston/src/CrowPanel-Advanced-5inch-ESP32-P4-HMI-AI-Display-800x480-IPS-Touch-Screen/example/V1.0/idf-code/Lesson13-Camera_Real-Time/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/home/baston/src/CrowPanel-Advanced-5inch-ESP32-P4-HMI-AI-Display-800x480-IPS-Touch-Screen/example/V1.0/idf-code/Lesson13-Camera_Real-Time/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/home/baston/src/CrowPanel-Advanced-5inch-ESP32-P4-HMI-AI-Display-800x480-IPS-Touch-Screen/example/V1.0/idf-code/Lesson13-Camera_Real-Time/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/home/baston/src/CrowPanel-Advanced-5inch-ESP32-P4-HMI-AI-Display-800x480-IPS-Touch-Screen/example/V1.0/idf-code/Lesson13-Camera_Real-Time/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
