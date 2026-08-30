@@ -15,10 +15,10 @@
 
 namespace {
 
-constexpr uint32_t kAnalysisWidth = 320;
-constexpr uint32_t kAnalysisHeight = 180;
+constexpr uint32_t kAnalysisWidth = 224;
+constexpr uint32_t kAnalysisHeight = 126;
 constexpr uint32_t kAnalysisBytesPerPixel = 2;
-constexpr uint32_t kAnalysisBufferCount = 3;
+constexpr uint32_t kAnalysisBufferCount = 1;
 constexpr uint32_t kAnalysisSubmitInterval = 5;
 constexpr uint32_t kDisplayWidth = 800;
 constexpr uint32_t kDisplayHeight = 480;
@@ -135,7 +135,7 @@ extern "C" esp_err_t face_tracking_init(void)
     for (uint8_t i = 0; i < kAnalysisBufferCount; ++i) {
         s_analysis_buffers[i] = static_cast<uint8_t *>(heap_caps_malloc(
             kAnalysisWidth * kAnalysisHeight * kAnalysisBytesPerPixel,
-            MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+            MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
         if (!s_analysis_buffers[i])
             return ESP_ERR_NO_MEM;
         xQueueSend(s_free_slots, &i, 0);
@@ -198,6 +198,9 @@ extern "C" void face_tracking_submit_frame(const uint8_t *camera_buf,
         }
     }
 
-    if (xQueueSend(s_ready_slots, &slot, 0) != pdTRUE)
+    if (xQueueSend(s_ready_slots, &slot, 0) != pdTRUE) {
         xQueueSend(s_free_slots, &slot, 0);
+        return;
+    }
+
 }

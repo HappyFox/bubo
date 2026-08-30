@@ -54,7 +54,7 @@ static esp_err_t display_port_init(void)
         .dma_burst_size = 64,                                   /* DMA burst size alignment for PSRAM buffer */
 #endif
         .num_fbs = 2,                                           /* Number of frame buffers */
-        .bounce_buffer_size_px = 10 * RGB_LCD_H_RES,             // Use DRAM bounce buffers for stable RGB scanout
+        .bounce_buffer_size_px = 40 * RGB_LCD_H_RES,             // Use a larger DRAM cushion during inference
         .clk_src = LCD_CLK_SRC_DEFAULT,                         /* Clock source for RGB LCD peripheral */
         .disp_gpio_num = RGB_PIN_NUM_DISP_EN,                   /* Display enable control pin, -1 if unused */
         .pclk_gpio_num = RGB_PIN_NUM_PCLK,                      /* PCLK signal pin */
