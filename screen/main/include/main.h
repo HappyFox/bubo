@@ -22,9 +22,13 @@
 #include "esp_sleep.h"
 #include "driver/rtc_io.h"
 #include "esp_timer.h"
+#include "esp_lvgl_port.h"
 
 #include "bsp_camera.h"
 #include "bsp_illuminate.h"
+#include "face_anim.h"
+#include "face_tracking.h"
+#include "usb_serial_lvgl.h"
 
 /*——————————————————————————————————————Header file declaration end——————————————————————————————————————*/
 /*——————————————————————————————————————————Variable declaration—————————————————————————————————————————*/

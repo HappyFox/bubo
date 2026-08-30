@@ -54,9 +54,7 @@ static esp_err_t display_port_init(void)
         .dma_burst_size = 64,                                   /* DMA burst size alignment for PSRAM buffer */
 #endif
         .num_fbs = 2,                                           /* Number of frame buffers */
-#if CONFIG_RGB_USE_BOUNCE_BUFFER
-        .bounce_buffer_size_px = 20 * RGB_LCD_H_RES,            // Set bounce buffer size if enabled
-#endif
+        .bounce_buffer_size_px = 10 * RGB_LCD_H_RES,             // Use DRAM bounce buffers for stable RGB scanout
         .clk_src = LCD_CLK_SRC_DEFAULT,                         /* Clock source for RGB LCD peripheral */
         .disp_gpio_num = RGB_PIN_NUM_DISP_EN,                   /* Display enable control pin, -1 if unused */
         .pclk_gpio_num = RGB_PIN_NUM_PCLK,                      /* PCLK signal pin */
@@ -181,6 +179,7 @@ static esp_err_t lvgl_init()
     };
     const lvgl_port_display_rgb_cfg_t lvgl_rgb_cfg = {
         .flags = {
+            .bb_mode = true,                                      // Wait for the completed bounce-buffer frame
 #if CONFIG_DISPLAY_LVGL_AVOID_TEAR
             .avoid_tearing = true,                                 // Enable tearing avoidance
 #else

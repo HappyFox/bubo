@@ -57,9 +57,27 @@ void Init(void)   // System initialization function
     if (err != ESP_OK)   // Check for error
         init_fail("display", err);   // Handle initialization failure
 
+    err = face_tracking_init();
+    if (err != ESP_OK)
+        init_fail("face tracking", err);
+
+    if (!lvgl_port_lock(pdMS_TO_TICKS(1000)))
+        init_fail("face animation lock", ESP_ERR_TIMEOUT);
+    err = face_anim_init(face_tracking_get_canvas());
+    lvgl_port_unlock();
+    if (err != ESP_OK)
+        init_fail("face animation", err);
+
+    err = usb_serial_lvgl_init(NULL);
+    if (err != ESP_OK)
+        init_fail("USB serial", err);
+
     err = camera_video_init();   // Initialize camera module
     if (err != ESP_OK)   // Check for error
         init_fail("camera", err);   // Handle initialization failure
+    err = video_register_analysis_frame_cb(face_tracking_submit_frame);
+    if (err != ESP_OK)
+        init_fail("face analysis callback", err);
     int video_node = camera_work();
     if (video_node == -1)
         init_fail("camera", ESP_FAIL);
@@ -68,16 +86,10 @@ void Init(void)   // System initialization function
 void app_main(void)   // Main application entry point
 {
     MAIN_INFO("----------Camera task----------\r\n");   // Print start log message
+    MAIN_INFO("app_main starting...");
 
     Init();   // Call system initialization function
 
-    vTaskDelay(pdMS_TO_TICKS(300)); // Wait for camera data
-    if (lvgl_port_lock(0))
-    {
-        set_camera_img_display(true);
-        lvgl_port_unlock();
-    }
-    
-    MAIN_INFO("----------The screen is displaying.----------\r\n");   // Log that the screen is now displaying camera output
+    MAIN_INFO("----------The screen canvas is ready.----------\r\n");
 }
 /*———————————————————————————————————————Functional function end—————————————————————————————————————————*/

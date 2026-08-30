@@ -55,6 +55,7 @@
 #define CAMERA_EVENT_PAUSE (1 << 1)
 
 typedef void (*camera_video_frame_operation_cb_t)(uint8_t *camera_buf, uint8_t camera_buf_index, uint32_t camera_buf_hes, uint32_t camera_buf_ves, size_t camera_buf_len);
+typedef void (*camera_frame_analysis_cb_t)(const uint8_t *camera_buf, uint32_t camera_buf_hes, uint32_t camera_buf_ves, uint32_t camera_buf_stride);
 typedef enum
 {
     VIDEO_TASK_DELETE = BIT(0),
@@ -83,6 +84,7 @@ uint32_t app_video_get_buf_size(void);
 esp_err_t video_stream_task_start(int video_fd, int core_id);
 esp_err_t video_stream_task_stop(int video_fd);
 esp_err_t video_register_frame_operation_cb(camera_video_frame_operation_cb_t operation_cb);
+esp_err_t video_register_analysis_frame_cb(camera_frame_analysis_cb_t analysis_cb);
 esp_err_t video_stream_wait_stop(void);
 int camera_work();
 void set_camera_img_display(bool state);

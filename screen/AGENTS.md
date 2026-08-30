@@ -1,2 +1,2 @@
 - Avoid editing driver code.
-- 
+- Don't modify drivers, work around their bugs. 

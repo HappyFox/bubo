@@ -13,16 +13,12 @@
 
 /*——————————————————————————————————————————Variable declaration—————————————————————————————————————————*/
 static i2c_master_bus_handle_t sccb_bus_handle = NULL;
-static lv_obj_t *camera_obj;
 static camera_video_t camera_video;
 uint8_t *cam_buffer[2];
 size_t cam_buffer_size[2];
-static uint8_t *display_buffer;
+static camera_frame_analysis_cb_t analysis_frame_cb;
+static uint8_t analysis_frame_counter;
 int camera_video_id = 0;
-
-#define CAMERA_DISPLAY_WIDTH  1024
-#define CAMERA_DISPLAY_HEIGHT 600
-#define CAMERA_BYTES_PER_PIXEL ((BITS_PER_PIXEL + 7) / 8)
 /*————————————————————————————————————————Variable declaration end———————————————————————————————————————*/
 
 /*—————————————————————————————————————————Functional function———————————————————————————————————————————*/
@@ -99,24 +95,45 @@ int video_open()
         CAMERA_ERROR("failed to get format");
         goto exit_0;
     }
-    CAMERA_INFO("width=%" PRIu32 " height=%" PRIu32 " format=%" PRIu32 " bytesperline=%d", camera_format.fmt.pix.width, camera_format.fmt.pix.height, camera_format.fmt.pix.pixelformat, camera_format.fmt.pix.bytesperline);
+    uint32_t fmt = camera_format.fmt.pix.pixelformat;
+    uint32_t bpl = camera_format.fmt.pix.bytesperline;
+    CAMERA_INFO("width=%" PRIu32 " height=%" PRIu32 " format=%" PRIu32 "(0x%" PRIx32 ") bytesperline=%" PRIu32, camera_format.fmt.pix.width, camera_format.fmt.pix.height, fmt, fmt, bpl);
+    CAMERA_INFO("checking if format RGB565: %d (V4L2_PIX_FMT_RGB565=0x%" PRIx32 ")", fmt != V4L2_PIX_FMT_RGB565, V4L2_PIX_FMT_RGB565);
     camera_video.camera_buf_hes = camera_format.fmt.pix.width;
     camera_video.camera_buf_ves = camera_format.fmt.pix.height;
     camera_video.camera_bytesperline = camera_format.fmt.pix.bytesperline;
     if (camera_format.fmt.pix.pixelformat != V4L2_PIX_FMT_RGB565)
     {
+        CAMERA_INFO("format is NOT RGB565, setting RGB565");
         struct v4l2_format format = {
             .type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
             .fmt.pix.width = camera_format.fmt.pix.width,
             .fmt.pix.height = camera_format.fmt.pix.height,
             .fmt.pix.pixelformat = V4L2_PIX_FMT_RGB565,
         };
+        CAMERA_INFO("before S_FMT: width=%" PRIu32 " height=%" PRIu32 " format=%" PRIu32, format.fmt.pix.width, format.fmt.pix.height, format.fmt.pix.pixelformat);
         if (ioctl(fd, VIDIOC_S_FMT, &format) != 0)
         {
             CAMERA_ERROR("failed to set format");
             goto exit_0;
         }
+        CAMERA_INFO("VIDIOC_S_FMT succeeded");
+        camera_format = format;
+        if (ioctl(fd, VIDIOC_G_FMT, &camera_format) != 0)
+        {
+            CAMERA_ERROR("failed to get format after set");
+            goto exit_0;
+        }
+        CAMERA_INFO("after S_FMT: width=%" PRIu32 " height=%" PRIu32 " format=%" PRIu32 " bytesperline=%d", camera_format.fmt.pix.width, camera_format.fmt.pix.height, camera_format.fmt.pix.pixelformat, camera_format.fmt.pix.bytesperline);
+        CAMERA_INFO("format after S_FMT is RGB565: %d", camera_format.fmt.pix.pixelformat == V4L2_PIX_FMT_RGB565);
+        if (camera_format.fmt.pix.pixelformat != V4L2_PIX_FMT_RGB565)
+        {
+            CAMERA_ERROR("format negotiation failed: requested RGB565 but got format=%" PRIu32, camera_format.fmt.pix.pixelformat);
+            goto exit_0;
+        }
     }
+    camera_video.camera_bytesperline = camera_format.fmt.pix.bytesperline;
+    CAMERA_INFO("final bytesperline=%d", camera_video.camera_bytesperline);
     CAMERA_INFO("app_video_open successful");
 #if CONFIG_ENABLE_CAM_SENSOR_PIC_VFLIP
     controls.ctrl_class = V4L2_CTRL_CLASS_USER;
@@ -299,11 +316,12 @@ static inline esp_err_t video_receive_video_frame(int video_fd)
  */
 static inline void video_operation_video_frame(int video_fd)
 {
-    camera_video.v4l2_buf.m.userptr = (unsigned long)camera_video.camera_buffer[camera_video.v4l2_buf.index];
-    camera_video.v4l2_buf.length = camera_video.camera_buf_size;
     uint8_t buf_index = camera_video.v4l2_buf.index;
+    uint8_t *expected_buf = camera_video.camera_buffer[buf_index];
+    camera_video.v4l2_buf.m.userptr = (unsigned long)expected_buf;
+    camera_video.v4l2_buf.length = camera_video.camera_buf_size;
     camera_video.user_camera_video_frame_operation_cb(
-        camera_video.camera_buffer[buf_index],
+        expected_buf,
         buf_index,
         camera_video.camera_buf_hes,
         camera_video.camera_buf_ves,
@@ -476,6 +494,12 @@ esp_err_t video_register_frame_operation_cb(camera_video_frame_operation_cb_t op
     return ESP_OK;
 }
 
+esp_err_t video_register_analysis_frame_cb(camera_frame_analysis_cb_t analysis_cb)
+{
+    analysis_frame_cb = analysis_cb;
+    return ESP_OK;
+}
+
 /**
  * @brief Perform the video stream wait stop operation.
  *
@@ -505,24 +529,11 @@ static void camera_video_frame_operation(uint8_t *camera_buf, uint8_t camera_buf
     EventBits_t bits = xEventGroupGetBits(camera_video.video_event_group);
     if (!(bits & VIDEO_TASK_DISPLAY_EN))
         return;
-    if (display_buffer == NULL || camera_buf_hes < CAMERA_DISPLAY_WIDTH || camera_buf_ves < CAMERA_DISPLAY_HEIGHT)
-        return;
-    if (lvgl_port_lock(100))
-    {
-        const size_t src_stride = camera_video.camera_bytesperline ? camera_video.camera_bytesperline : (camera_buf_hes * CAMERA_BYTES_PER_PIXEL);
-        const size_t dst_stride = CAMERA_DISPLAY_WIDTH * CAMERA_BYTES_PER_PIXEL;
-        const uint32_t crop_x = (camera_buf_hes - CAMERA_DISPLAY_WIDTH) / 2;
-        const uint32_t crop_y = (camera_buf_ves - CAMERA_DISPLAY_HEIGHT) / 2;
-        const uint8_t *src = camera_buf + crop_y * src_stride + crop_x * CAMERA_BYTES_PER_PIXEL;
-
-        for (uint32_t y = 0; y < CAMERA_DISPLAY_HEIGHT; y++)
-        {
-            memcpy(display_buffer + y * dst_stride, src + y * src_stride, dst_stride);
-        }
-        lv_obj_invalidate(camera_obj);
-        lv_refr_now(NULL);
-        lvgl_port_unlock();
-    }
+    esp_cache_msync((void *)camera_buf, camera_buf_len, ESP_CACHE_MSYNC_FLAG_DIR_M2C);
+    // The camera is capture-only. Avoid copying frames into LVGL so the
+    // analysis path does not compete with the primary UI.
+    if (analysis_frame_cb != NULL && (++analysis_frame_counter % 3) == 0)
+        analysis_frame_cb(camera_buf, camera_buf_hes, camera_buf_ves, camera_video.camera_bytesperline);
 }
 
 /**
@@ -543,7 +554,6 @@ int camera_work()
     }
     CAMERA_INFO("camera_video_id = %d", camera_video_id);
     const size_t frame_buffer_size = app_video_get_buf_size();
-    const size_t display_buffer_size = CAMERA_DISPLAY_WIDTH * CAMERA_DISPLAY_HEIGHT * CAMERA_BYTES_PER_PIXEL;
     err = esp_cache_get_alignment(MALLOC_CAP_SPIRAM, &cache_line_size);
     if (err != ESP_OK || cache_line_size == 0)
     {
@@ -567,35 +577,11 @@ int camera_work()
         }
         cam_buffer_size[i] = frame_buffer_size;
     }
-    display_buffer = (uint8_t *)heap_caps_aligned_alloc(cache_line_size, display_buffer_size, MALLOC_CAP_SPIRAM);
-    if (display_buffer == NULL)
-    {
-        CAMERA_ERROR("failed to allocate display buffer (%u bytes)", (unsigned)display_buffer_size);
-        for (int i = 0; i < 2; i++)
-        {
-            heap_caps_free(cam_buffer[i]);
-            cam_buffer[i] = NULL;
-        }
-        close(camera_video_id);
-        return -1;
-    }
-    CAMERA_INFO("allocated 2 camera buffers (%u bytes each) and display buffer (%u bytes)",
-                (unsigned)frame_buffer_size, (unsigned)display_buffer_size);
+    CAMERA_INFO("frame_buffer_size=%zu", frame_buffer_size);
     err = video_register_frame_operation_cb(camera_video_frame_operation);
     if (err != ESP_OK)
     {
         CAMERA_INFO("register frame operation ERROR");
-    }
-    if (lvgl_port_lock(0))
-    {
-        camera_obj = lv_canvas_create(lv_scr_act());
-        lv_obj_set_size(camera_obj, CAMERA_DISPLAY_WIDTH, CAMERA_DISPLAY_HEIGHT);
-        memset(display_buffer, 0xFF, display_buffer_size);
-        lv_canvas_set_buffer(camera_obj, display_buffer, CAMERA_DISPLAY_WIDTH, CAMERA_DISPLAY_HEIGHT, LV_IMG_CF_TRUE_COLOR);
-        lv_obj_align(lv_scr_act(), LV_ALIGN_CENTER, 0, 0);
-        lv_obj_clear_flag(lv_scr_act(), LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(camera_obj, LV_OBJ_FLAG_HIDDEN);
-        lvgl_port_unlock();
     }
     err = camera_video_set_bufs(camera_video_id, 2, (const void **)cam_buffer);
     if (err != ESP_OK)
@@ -624,17 +610,11 @@ void set_camera_img_display(bool state)
 {
     if (state)
     {
-        if (camera_obj != NULL)
-            lv_obj_clear_flag(camera_obj, LV_OBJ_FLAG_HIDDEN);
-
         if (camera_video.video_event_group)
             xEventGroupSetBits(camera_video.video_event_group, VIDEO_TASK_DISPLAY_EN);
     }
     else
     {
-        if (camera_obj != NULL)
-            lv_obj_add_flag(camera_obj, LV_OBJ_FLAG_HIDDEN);
-
         if (camera_video.video_event_group)
             xEventGroupClearBits(camera_video.video_event_group, VIDEO_TASK_DISPLAY_EN);
     }
