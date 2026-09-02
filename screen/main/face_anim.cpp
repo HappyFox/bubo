@@ -1,5 +1,6 @@
 #include "face_anim.h"
 #include "esp_log.h"
+#include "esp_random.h"
 
 namespace {
 
@@ -38,11 +39,15 @@ static struct Expression face_expression = {
 //lv_obj_t * face_canvas;
 //lv_color_t * canvas_buffer = NULL;
 
+lv_timer_t * blink_timer;
 //lv_timer_t * blink_close_timer;
 //lv_timer_t * blink_open_timer;
 //lv_timer_t * speaking_timer;
 
 //void update_face_expression(void * arg);
+
+
+
 
 static void draw_eyes()
 {
@@ -80,6 +85,37 @@ static void draw_face()
     lv_obj_invalidate(s_canvas);
 }
 
+static uint32_t blink_interval()
+{
+    return 2000 + (esp_random() % 3001); 
+}
+
+static void setup_next_blink()
+{
+    uint32_t next_blink_time = 20;
+    ESP_LOGI(TAG,"Blink setup.");
+    if (not face_expression.blinking)
+    {
+        ESP_LOGI(TAG,"Blink setup, short.");
+        next_blink_time = blink_interval();
+    }
+
+    lv_timer_set_period(blink_timer, next_blink_time);
+    lv_timer_reset(blink_timer);  
+    lv_timer_resume(blink_timer); // Unpause the open timer to allow it to trigger after 200ms
+}
+
+static void blink_cb(lv_timer_t * timer) 
+{
+    (void)timer;
+
+    ESP_LOGI(TAG,"Blink CB.");
+    face_expression.blinking = not face_expression.blinking;
+
+    //lv_async_call(draw_face, NULL);
+    draw_face();
+    setup_next_blink();
+}
 
 
 } // namespace
@@ -89,12 +125,21 @@ extern "C" esp_err_t face_anim_init(lv_obj_t *canvas)
     if (!canvas)
         return ESP_ERR_INVALID_ARG;
 
+    ESP_LOGI(TAG,"Face_anim setup");
     s_canvas = canvas;
+    //draw_face();
+
+    blink_timer = lv_timer_create(blink_cb, blink_interval(), nullptr);
+    if (!blink_timer)
+        return ESP_ERR_NO_MEM;
+
     draw_face();
+    setup_next_blink();
     return ESP_OK;
 }
 
 extern "C" void face_anim_draw(void)
 {
+    //lv_async_call(draw_face, NULL);
     draw_face();
 }
